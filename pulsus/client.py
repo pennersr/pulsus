@@ -1,6 +1,17 @@
 import json
 import requests
 
+
+class C2DMNotification(object):
+    def __init__(self, registration_id, payload):
+        self.registration_id = registration_id
+        self.payload = payload
+
+    def marshall(self):
+        return { 'type': 'c2dm',
+                 'registration_id': self.registration_id,
+                 'payload': self.payload }
+
 class BBPNotification(object):
     def __init__(self, device_pins, message):
         self.device_pins = device_pins
