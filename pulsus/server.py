@@ -12,11 +12,13 @@ import ConfigParser
 
 from pulsus.services.apns import NotificationService, NotificationMessage
 from pulsus.services.bbp import BlackBerryPushService, BlackBerryPushNotification
+from pulsus.services.c2dm import C2DMService, C2DMNotification
 
 class APIServer(HTTPServer):
     def __init__(self, *args, **kwargs):
         self.apns = kwargs.pop('apns')
         self.bbp = kwargs.pop('bbp')
+        self.c2dm = kwargs.pop('c2dm')
         super(APIServer, self).__init__(*args, **kwargs)
         self.log = logging.getLogger('pulsus.server')
 
@@ -41,7 +43,10 @@ class APIServer(HTTPServer):
                 self.log.error("Unknown push type")
 
     def push_c2dm(self, notification):
-        pass
+        self.log.debug("Sending C2DM notification")
+        n = C2DMNotification(notification['registration_id'],
+                             notification['payload'])
+        self.c2dm.push(n)
 
     def push_bbp(self, notification):
         self.log.debug("Sending BBP notification")
@@ -84,16 +89,23 @@ def main():
     gevent.spawn(apns_feedback_handler, apns_server)
 
     # BlackBerry
-    bbp_server = BlackBerryPushService(config.get('blackberry', 'app_id'),
-                                       config.get('blackberry', 'password'),
-                                       config.get('blackberry', 'push_url'))
+    bbp_server = BlackBerryPushService(config.get('bbp', 'app_id'),
+                                       config.get('bbp', 'password'),
+                                       config.get('bbp', 'push_url'))
     bbp_server.start()
+
+    # C2DM
+    c2dm_server = C2DMService(config.get('c2dm', 'source'),
+                              config.get('c2dm', 'email'),
+                              config.get('c2dm', 'password'))
+    c2dm_server.start()
 
     # API
     api_server = APIServer((config.get('server','address'),
                             config.getint('server','port')), 
                            apns=apns_server,
-                           bbp=bbp_server)
+                           bbp=bbp_server,
+                           c2dm=c2dm_server)
     logging.info("Pulsus started")
     api_server.serve_forever()
 
