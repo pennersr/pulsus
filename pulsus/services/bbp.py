@@ -18,6 +18,7 @@ class  BlackBerryPushNotification(object):
         self.device_pins = device_pins
         self.deliver_before = deliver_before
         self.push_id = push_id
+        self.message = message
 
 class BlackBerryPushService(object):
     def __init__(self, app_id, password, push_url):
@@ -94,9 +95,10 @@ class BlackBerryPushService(object):
 --{boundary}
 Content-Type: text/plain
 
-Hello device
+{message}
 --{boundary}
 """.format(xml=xml,
+           message=notification.message,
            boundary=boundary)
 
         headers = { 'Content-Type': 'multipart/related; boundary={0}; type=application/xml'.format(boundary) }
