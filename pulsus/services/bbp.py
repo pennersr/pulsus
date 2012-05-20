@@ -99,7 +99,6 @@ Hello device
 """.format(xml=xml,
            boundary=boundary)
 
-        print post_data
         headers = { 'Content-Type': 'multipart/related; boundary={0}; type=application/xml'.format(boundary) }
         req =  requests.async.post(self.push_url, 
                                    data=post_data,
@@ -108,6 +107,7 @@ Hello device
                                    headers=headers)
         resp = requests.async.map([req])[0]
         resp.raise_for_status()
-        print resp.content
+        self.log.debug(resp.content)
+
 
 
