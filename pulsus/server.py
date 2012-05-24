@@ -1,6 +1,9 @@
+from datetime import datetime
 from gevent import monkey; monkey.patch_all()
 from gevent.http import HTTPServer
 from gevent.httplib import HTTPResponse
+from gevent.queue import Empty
+
 import sys
 import os
 import json
@@ -28,8 +31,24 @@ class APIServer(HTTPServer):
             json_data = request.input_buffer.read(-1)
             notifications = json.loads(json_data)
             self.push_notifications(notifications)
-            request.send_reply(201, "CREATED", 'hello')
+            request.send_reply(201, "CREATED", '')
+        elif request.uri == '/api/feedback/' and request.typestr == 'GET':
+            self.handle_feedback(request)
         request.send_reply_end()
+
+    def handle_feedback(self, request):
+        feedback = []
+        try:
+            while True:
+                epoch, token = self.apns.get_feedback(block=False)
+                dt = datetime.utcfromtimestamp(epoch)
+                feedback.append(dict(type='apns',
+                                     marked_inactive_on=dt.isoformat(),
+                                     token=token.encode('hex')))
+        except Empty:
+            pass
+        request.send_reply(200, "OK", json.dumps(feedback))
+
 
     def push_notifications(self, notifications):
         for notification in notifications:
