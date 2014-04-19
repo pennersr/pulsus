@@ -28,9 +28,6 @@ class APIServer(object):
         self.c2dm = kwargs.pop('c2dm')
         self.log = logging.getLogger('pulsus.server')
 
-    def dispatch_request(self, request):
-        return Response('Hello World!')
-
     def wsgi_app(self, environ, start_response):
         request = Request(environ)
         response = self.dispatch_request(request)
@@ -39,16 +36,15 @@ class APIServer(object):
     def __call__(self, environ, start_response):
         return self.wsgi_app(environ, start_response)
 
-    def handle(self, request):
-        headers = request.get_input_headers()
-        if request.uri == '/api/push/' and request.typestr == 'POST':
-            json_data = request.input_buffer.read(-1)
-            notifications = json.loads(json_data)
+    def dispatch_request(self, request):
+        if request.path == '/api/push/' and request.method == 'POST':
+            notifications = json.loads(request.data)
             self.push_notifications(notifications)
-            request.send_reply(201, "CREATED", '')
-        elif request.uri == '/api/feedback/' and request.typestr == 'GET':
-            self.handle_feedback(request)
-        request.send_reply_end()
+            resp = Response('')
+            resp.status_code = 201
+        elif request.path == '/api/feedback/' and request.method == 'GET':
+            resp = self.handle_feedback(request)
+        return resp
 
     def handle_feedback(self, request):
         feedback = []
@@ -61,7 +57,8 @@ class APIServer(object):
                                      token=token.encode('hex')))
         except Empty:
             pass
-        request.send_reply(200, "OK", json.dumps(feedback))
+        resp = Response(json.dumps(feedback))
+        return resp
 
 
     def push_notifications(self, notifications):
@@ -117,6 +114,7 @@ def main():
 
     # Apple
     apns_server = NotificationService(
+        sandbox=config.getboolean('apns', 'sandbox'),
         certfile=config.get('apns', 'cert_file_pem'))
     apns_server.start()
 

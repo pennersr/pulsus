@@ -1,3 +1,5 @@
+import os
+import logging
 import struct
 import time
 
@@ -14,6 +16,9 @@ except ImportError:
 
 INITIAL_TIMEOUT = 5
 MAX_TIMEOUT = 600
+
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationMessage(object):
@@ -70,6 +75,8 @@ class NotificationService(object):
     def __init__(self, sandbox=True, **kwargs):
         if "certfile" not in kwargs:
             raise ValueError(u"Must specify a PEM bundle.")
+        if not os.path.exists(kwargs['certfile']):
+            raise ValueError('PEM bundle file not found')
         self._sslargs = kwargs
         self._push_connection = None
         self._feedback_connection = None
@@ -110,6 +117,7 @@ class NotificationService(object):
             if self._sandbox:
                 addr[0] = "feedback.sandbox.push.apple.com"
             s.connect_ex(tuple(addr))
+
             self._feedback_connection = s
 
     def check_blocking(self):
@@ -119,8 +127,8 @@ class NotificationService(object):
 
     def _send_loop(self):
         self._send_greenlet = gevent.getcurrent()
-
         try:
+            logger.info("APNS service started")
             while True:
                 msg = self._send_queue.get()
                 self._check_send_connection()
@@ -145,8 +153,9 @@ class NotificationService(object):
                             not self._send_queue_cleared.is_set():
                         self._send_queue_cleared.set()
         except gevent.GreenletExit:
-            pass
+            logger.exception('Error')
         finally:
+            logger.info("APNS service stopped")
             self._send_greenlet = None
 
     def _error_loop(self):
@@ -161,7 +170,7 @@ class NotificationService(object):
                 data = struct.unpack("!bbI", msg)
                 self._error_queue.put((data[1], data[2]))
         except gevent.GreenletExit:
-            pass
+            logger.exception('Error')
         finally:
             if self._push_connection is not None:
                 self._push_connection.close()
@@ -179,10 +188,11 @@ class NotificationService(object):
                 data = struct.unpack("!IH32s", msg)
                 self._feedback_queue.put((data[0], data[2]))
         except gevent.GreenletExit:
-            pass
+            logger.exception('Error')
         finally:
-            self._feedback_connection.close()
-            self._feedback_connection = None
+            if self._feedback_connection:
+                self._feedback_connection.close()
+                self._feedback_connection = None
             self._feedback_greenlet = None
 
     def send(self, obj):

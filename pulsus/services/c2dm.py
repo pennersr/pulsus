@@ -5,6 +5,8 @@ import gevent
 from gevent.queue import Queue
 from gevent.event import Event
 
+logger = logging.getLogger(__name__)
+
 
 class C2DMNotification(object):
     def __init__(self, registration_id, payload):
@@ -19,18 +21,17 @@ class C2DMService(object):
         self.password = password
         self._send_queue = Queue()
         self._send_queue_cleared = Event()
-        self.log = logging.getLogger('pulsus.service.c2dm')
 
     def _send_loop(self):
         self._send_greenlet = gevent.getcurrent()
         try:
-            self.log.info("C2DM service started")
+            logger.info("C2DM service started")
             while True:
                 notification = self._send_queue.get()
                 try:
                     self._do_push(notification)
                 except Exception:
-                    self.log.exception("Error while pushing")
+                    logger.exception("Error while pushing")
                     self._send_queue.put(notification)
                     gevent.sleep(5.0)
                 finally:
@@ -41,7 +42,7 @@ class C2DMService(object):
             pass
         finally:
             self._send_greenlet = None
-        self.log.info("C2DM service stopped")
+        logger.info("C2DM service stopped")
 
     def start(self):
         gevent.spawn(self._send_loop)

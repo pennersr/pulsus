@@ -17,6 +17,7 @@ Pulsus configuration file over at `/home/example/etc/pulsus/pulsus.conf`::
 
     [apns]
     cert_file_pem = /home/example/etc/pulsus/apns.pem
+    sandbox = True
 
     [bbp]
     app_id = 1234-567890thisisreallyasecret1234567890
@@ -33,3 +34,15 @@ A `logging.conf` file is required to be present in the same directory.
 Then, start as follows::
 
     /home/example/virtualenv/bin/python -m pulsus.server /home/example/etc/pulsus/
+
+
+Usage
+=====
+
+Client::
+
+    from pulsus.client import Client, APNSNotification
+
+    c = Client('127.0.0.1', 8321)
+    c.push([APNSNotification(token='676be1c77...',
+                             alert='Greetings from Pulsus!')])
