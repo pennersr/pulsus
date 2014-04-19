@@ -2,14 +2,15 @@ import time
 import random
 import logging
 from datetime import datetime, timedelta
-import requests
-import requests.async
+import grequests
 
 import gevent
 from gevent.queue import Queue
 from gevent.event import Event
 
-class  BlackBerryPushNotification(object):
+
+class BlackBerryPushNotification(object):
+
     def __init__(self, device_pins, message, deliver_before=None, push_id=None):
         if not deliver_before:
             deliver_before = (datetime.now() + timedelta(minutes=10))
@@ -19,6 +20,7 @@ class  BlackBerryPushNotification(object):
         self.deliver_before = deliver_before
         self.push_id = push_id
         self.message = message
+
 
 class BlackBerryPushService(object):
     def __init__(self, app_id, password, push_url):
@@ -50,7 +52,7 @@ class BlackBerryPushService(object):
         finally:
             self._send_greenlet = None
         self.log.info("BlackBerry Push service stopped")
-        
+
 
     def start(self):
         gevent.spawn(self._send_loop)
@@ -102,14 +104,11 @@ Content-Type: text/plain
            boundary=boundary)
 
         headers = { 'Content-Type': 'multipart/related; boundary={0}; type=application/xml'.format(boundary) }
-        req =  requests.async.post(self.push_url, 
-                                   data=post_data,
-                                   auth=(self.app_id, 
-                                         self.password),
-                                   headers=headers)
-        resp = requests.async.map([req])[0]
+        req = grequests.post(self.push_url,
+                             data=post_data,
+                             auth=(self.app_id,
+                                   self.password),
+                             headers=headers)
+        resp = grequests.map([req])[0]
         resp.raise_for_status()
         self.log.debug(resp.content)
-
-
-

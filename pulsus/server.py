@@ -1,7 +1,7 @@
+from gevent import monkey
+monkey.patch_all()
+
 from datetime import datetime
-from gevent import monkey; monkey.patch_all()
-from gevent.http import HTTPServer
-from gevent.httplib import HTTPResponse
 from gevent.queue import Empty
 
 import sys
@@ -12,18 +12,32 @@ import logging
 import logging.config
 import ConfigParser
 
+from werkzeug.wrappers import Request, Response
+from werkzeug.serving import run_simple
 
-from pulsus.services.apns import NotificationService, NotificationMessage
-from pulsus.services.bbp import BlackBerryPushService, BlackBerryPushNotification
-from pulsus.services.c2dm import C2DMService, C2DMNotification
+from .services.apns import NotificationService, NotificationMessage
+from .services.bbp import BlackBerryPushService, BlackBerryPushNotification
+from .services.c2dm import C2DMService, C2DMNotification
 
-class APIServer(HTTPServer):
+
+class APIServer(object):
+
     def __init__(self, *args, **kwargs):
         self.apns = kwargs.pop('apns')
         self.bbp = kwargs.pop('bbp')
         self.c2dm = kwargs.pop('c2dm')
-        super(APIServer, self).__init__(*args, **kwargs)
         self.log = logging.getLogger('pulsus.server')
+
+    def dispatch_request(self, request):
+        return Response('Hello World!')
+
+    def wsgi_app(self, environ, start_response):
+        request = Request(environ)
+        response = self.dispatch_request(request)
+        return response(environ, start_response)
+
+    def __call__(self, environ, start_response):
+        return self.wsgi_app(environ, start_response)
 
     def handle(self, request):
         headers = request.get_input_headers()
@@ -94,24 +108,28 @@ def apns_feedback_handler(apns):
 
 def main():
     assert len(sys.argv) == 2, "Usage: pulsus <config_dir>"
-    
+
     config_dir = sys.argv[1]
-    
+
     config = ConfigParser.ConfigParser()
     config.read([os.path.join(config_dir, 'pulsus.conf')])
     logging.config.fileConfig(os.path.join(config_dir, 'logging.conf'))
 
     # Apple
-    apns_server = NotificationService(certfile=config.get('apns', 'cert_file_pem'))
+    apns_server = NotificationService(
+        certfile=config.get('apns', 'cert_file_pem'))
     apns_server.start()
-    
+
     gevent.spawn(apns_feedback_handler, apns_server)
 
     # BlackBerry
-    bbp_server = BlackBerryPushService(config.get('bbp', 'app_id'),
-                                       config.get('bbp', 'password'),
-                                       config.get('bbp', 'push_url'))
-    bbp_server.start()
+    try:
+        bbp_server = BlackBerryPushService(config.get('bbp', 'app_id'),
+                                           config.get('bbp', 'password'),
+                                           config.get('bbp', 'push_url'))
+        bbp_server.start()
+    except ConfigParser.NoSectionError:
+        bbp_server = None
 
     # C2DM
     c2dm_server = C2DMService(config.get('c2dm', 'source'),
@@ -120,15 +138,14 @@ def main():
     c2dm_server.start()
 
     # API
-    api_server = APIServer((config.get('server','address'),
-                            config.getint('server','port')), 
-                           apns=apns_server,
+    api_server = APIServer(apns=apns_server,
                            bbp=bbp_server,
                            c2dm=c2dm_server)
+    server_address = config.get('server', 'address')
+    server_port = config.getint('server', 'port')
     logging.info("Pulsus started")
-    api_server.serve_forever()
+    run_simple(server_address, server_port, api_server)
 
-    
 
 if __name__ == "__main__":
     main()
