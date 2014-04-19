@@ -33,7 +33,7 @@ Pulsus configuration file over at `/home/example/etc/pulsus/pulsus.conf`::
 A `logging.conf` file is required to be present in the same directory.
 Then, start as follows::
 
-    /home/example/virtualenv/bin/python -m pulsus.server /home/example/etc/pulsus/
+    /home/example/virtualenv/bin/python -m pulsus.server.serve /home/example/etc/pulsus/
 
 
 Usage

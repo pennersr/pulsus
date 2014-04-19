@@ -34,7 +34,7 @@ class NotificationMessage(object):
     extra - dictionary of extra parameters
     """
     def __init__(self, token, alert=None, badge=None, sound=None, identifier=0,
-            expiry=None, extra=None, **kwargs):
+                 expiry=None, extra=None, **kwargs):
         if len(token) != 32:
             raise ValueError(u"Token must be a 32-byte binary string")
         if alert is not None and not isinstance(alert, (str, unicode, dict)):
@@ -66,7 +66,8 @@ class NotificationMessage(object):
         encoded = json.dumps(data)
         length = len(encoded)
 
-        return struct.pack("!bIIH32sH%(length)ds" % {"length": length},
+        return struct.pack(
+            "!bIIH32sH%(length)ds" % {"length": length},
             1, self.identifier, self.expiry,
             32, self.token, length, encoded)
 
@@ -105,7 +106,8 @@ class NotificationService(object):
                 addr[0] = "gateway.sandbox.push.apple.com"
             s.connect_ex(tuple(addr))
             self._push_connection = s
-            self._error_greenlet = gevent.spawn(self.save_err, self._error_loop)
+            self._error_greenlet = gevent.spawn(self.save_err,
+                                                self._error_loop)
 
     def _check_feedback_connection(self):
         if self._feedback_connection is None:
@@ -214,7 +216,8 @@ class NotificationService(object):
 
         Each feedback message is a 2-tuple of (timestamp, device_token)."""
         if self._feedback_greenlet is None:
-            self._feedback_greenlet = gevent.spawn(self.save_err, self._feedback_loop)
+            self._feedback_greenlet = gevent.spawn(self.save_err,
+                                                   self._feedback_loop)
         return self._feedback_queue.get(block=block, timeout=timeout)
 
     def get_last_error(self):

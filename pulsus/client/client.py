@@ -8,9 +8,10 @@ class C2DMNotification(object):
         self.payload = payload
 
     def marshall(self):
-        return { 'type': 'c2dm',
-                 'registration_id': self.registration_id,
-                 'payload': self.payload }
+        return {'type': 'c2dm',
+                'registration_id': self.registration_id,
+                'payload': self.payload}
+
 
 class BBPNotification(object):
     def __init__(self, device_pins, message):
@@ -18,9 +19,10 @@ class BBPNotification(object):
         self.message = message
 
     def marshall(self):
-        return { 'type': 'bbp',
-                 'device_pins': self.device_pins,
-                 'message': self.message }
+        return {'type': 'bbp',
+                'device_pins': self.device_pins,
+                'message': self.message}
+
 
 class APNSNotification(object):
     """
@@ -34,10 +36,10 @@ class APNSNotification(object):
     expiry - expiry date of message
     extra - dictionary of extra parameters
     """
-    def __init__(self, token, alert = None, badge = None, sound = None,
-                 extra = None):
+    def __init__(self, token, alert=None, badge=None, sound=None,
+                 extra=None):
         if len(token) != 64:
-            raise ValueError, u"Token must be a 64-char hex string."
+            raise ValueError(u"Token must be a 64-char hex string.")
         if (alert is not None) and (not isinstance(alert, (str, unicode))):
             raise ValueError
         self.token = token
@@ -54,7 +56,6 @@ class APNSNotification(object):
             if val is not None:
                 ret[attr] = val
         return ret
-                   
 
 
 class Client(object):
@@ -68,5 +69,3 @@ class Client(object):
         resp = requests.post(self.push_url,
                              data=data)
         return resp
-        
-

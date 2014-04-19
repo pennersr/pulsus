@@ -4,7 +4,6 @@ monkey.patch_all()
 from datetime import datetime
 from gevent.queue import Empty
 
-import sys
 import os
 import json
 import gevent
@@ -13,11 +12,13 @@ import logging.config
 import ConfigParser
 
 from werkzeug.wrappers import Request, Response
-from werkzeug.serving import run_simple
 
 from .services.apns import NotificationService, NotificationMessage
 from .services.bbp import BlackBerryPushService, BlackBerryPushNotification
 from .services.c2dm import C2DMService, C2DMNotification
+
+
+logger = logging.getLogger(__name__)
 
 
 class APIServer(object):
@@ -26,7 +27,6 @@ class APIServer(object):
         self.apns = kwargs.pop('apns')
         self.bbp = kwargs.pop('bbp')
         self.c2dm = kwargs.pop('c2dm')
-        self.log = logging.getLogger('pulsus.server')
 
     def wsgi_app(self, environ, start_response):
         request = Request(environ)
@@ -40,7 +40,7 @@ class APIServer(object):
         if request.path == '/api/push/' and request.method == 'POST':
             notifications = json.loads(request.data)
             self.push_notifications(notifications)
-            resp = Response('')
+            resp = Response('bla')
             resp.status_code = 201
         elif request.path == '/api/feedback/' and request.method == 'GET':
             resp = self.handle_feedback(request)
@@ -60,7 +60,6 @@ class APIServer(object):
         resp = Response(json.dumps(feedback))
         return resp
 
-
     def push_notifications(self, notifications):
         for notification in notifications:
             if notification['type'] == 'apns':
@@ -70,22 +69,22 @@ class APIServer(object):
             elif notification['type'] == 'bbp':
                 self.push_bbp(notification)
             else:
-                self.log.error("Unknown push type")
+                logger.error("Unknown push type")
 
     def push_c2dm(self, notification):
-        self.log.debug("Sending C2DM notification")
+        logger.debug("Sending C2DM notification")
         n = C2DMNotification(notification['registration_id'],
                              notification['payload'])
         self.c2dm.push(n)
 
     def push_bbp(self, notification):
-        self.log.debug("Sending BBP notification")
+        logger.debug("Sending BBP notification")
         n = BlackBerryPushNotification(notification['device_pins'],
                                        notification['message'])
         self.bbp.push(n)
 
     def push_apns(self, notification):
-        self.log.debug("Sending APNS notification")
+        logger.debug("Sending APNS notification")
         token = notification['token'].decode('hex')
         kwargs = dict()
         for attr in ['alert', 'badge', 'extra', 'sound']:
@@ -96,22 +95,18 @@ class APIServer(object):
         self.apns.send(message)
 
 
-
 def apns_feedback_handler(apns):
     for fb in apns.get_feedback():
         print fb
 
 
-
-def main():
-    assert len(sys.argv) == 2, "Usage: pulsus <config_dir>"
-
-    config_dir = sys.argv[1]
-
+def read_config(config_dir):
     config = ConfigParser.ConfigParser()
     config.read([os.path.join(config_dir, 'pulsus.conf')])
-    logging.config.fileConfig(os.path.join(config_dir, 'logging.conf'))
+    return config
 
+
+def setup(config):
     # Apple
     apns_server = NotificationService(
         sandbox=config.getboolean('apns', 'sandbox'),
@@ -139,11 +134,4 @@ def main():
     api_server = APIServer(apns=apns_server,
                            bbp=bbp_server,
                            c2dm=c2dm_server)
-    server_address = config.get('server', 'address')
-    server_port = config.getint('server', 'port')
-    logging.info("Pulsus started")
-    run_simple(server_address, server_port, api_server)
-
-
-if __name__ == "__main__":
-    main()
+    return api_server
