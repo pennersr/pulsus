@@ -1,7 +1,6 @@
 from setuptools import setup, find_packages
 
 requires = [
-    'applepushnotification==0.1.1',
     'werkzeug>=0.9.4',
     'gevent>=1.0',
     'grequests'
