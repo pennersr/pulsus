@@ -47,6 +47,7 @@ class APNSService(BaseService):
             addr = ["gateway.push.apple.com", 2195]
             if self._sandbox:
                 addr[0] = "gateway.sandbox.push.apple.com"
+            logger.debug('Connecting to %s' % addr[0])
             s.connect_ex(tuple(addr))
             self._push_connection = s
             self._error_greenlet = gevent.spawn(self.save_err,
@@ -61,6 +62,7 @@ class APNSService(BaseService):
             addr = ["feedback.push.apple.com", 2196]
             if self._sandbox:
                 addr[0] = "feedback.sandbox.push.apple.com"
+            logger.debug('Connecting to %s' % addr[0])
             s.connect_ex(tuple(addr))
 
             self._feedback_connection = s
@@ -153,4 +155,5 @@ class APNSService(BaseService):
 
     def send_notification(self, notification):
         self._check_send_connection()
+        logger.debug('Sending APNS notification')
         self._push_connection.send(notification.pack())

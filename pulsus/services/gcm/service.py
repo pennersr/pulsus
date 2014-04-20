@@ -15,6 +15,7 @@ class GCMService(BaseService):
         self.api_key = api_key
 
     def send_notification(self, message):
+        logger.info(u'GCM push: %r' % message)
         url = "https://android.googleapis.com/gcm/send"
         headers = {'Authorization': 'key=' + self.api_key,
                    'Content-Type': 'application/json'}

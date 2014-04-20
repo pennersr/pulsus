@@ -4,11 +4,11 @@ import gevent
 from gevent.queue import Queue
 from gevent.event import Event
 
-logger = logging.getLogger(__name__)
-
-
 INITIAL_TIMEOUT = 5
 MAX_TIMEOUT = 600
+
+
+logger = logging.getLogger(__name__)
 
 
 class BaseService(object):

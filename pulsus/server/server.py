@@ -8,7 +8,6 @@ import os
 import json
 import gevent
 import logging
-import logging.config
 import ConfigParser
 
 from werkzeug.wrappers import Request, Response
@@ -85,6 +84,7 @@ def read_config(config_dir):
 
 def setup(config):
     # Apple
+
     apns_server = APNSService(
         sandbox=config.getboolean('apns', 'sandbox'),
         certfile=config.get('apns', 'cert_file_pem'))
