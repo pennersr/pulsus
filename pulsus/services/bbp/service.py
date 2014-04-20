@@ -1,3 +1,7 @@
+# FIXME: This code once used to work, but was never kept in sync with
+# latest development changes. The code is kept for reference only,
+# just in case I need to revive it at a future point in time ...
+
 import time
 import random
 import logging

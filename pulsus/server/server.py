@@ -13,9 +13,9 @@ import ConfigParser
 
 from werkzeug.wrappers import Request, Response
 
-from .services.apns import NotificationService, NotificationMessage
-from .services.bbp import BlackBerryPushService, BlackBerryPushNotification
-from .services.c2dm import C2DMService, C2DMNotification
+from ..services.apns import APNSService
+from ..services.gcm import GCMService
+from ..services.base import BaseNotification
 
 
 logger = logging.getLogger(__name__)
@@ -25,8 +25,7 @@ class APIServer(object):
 
     def __init__(self, *args, **kwargs):
         self.apns = kwargs.pop('apns')
-        self.bbp = kwargs.pop('bbp')
-        self.c2dm = kwargs.pop('c2dm')
+        self.gcm = kwargs.pop('gcm')
 
     def wsgi_app(self, environ, start_response):
         request = Request(environ)
@@ -40,7 +39,7 @@ class APIServer(object):
         if request.path == '/api/push/' and request.method == 'POST':
             notifications = json.loads(request.data)
             self.push_notifications(notifications)
-            resp = Response('bla')
+            resp = Response('')
             resp.status_code = 201
         elif request.path == '/api/feedback/' and request.method == 'GET':
             resp = self.handle_feedback(request)
@@ -61,38 +60,16 @@ class APIServer(object):
         return resp
 
     def push_notifications(self, notifications):
-        for notification in notifications:
-            if notification['type'] == 'apns':
-                self.push_apns(notification)
-            elif notification['type'] == 'c2dm':
-                self.push_c2dm(notification)
-            elif notification['type'] == 'bbp':
-                self.push_bbp(notification)
+        for data in notifications:
+            notification = BaseNotification.deserialize(data)
+            if notification.service_type == 'apns':
+                logger.debug("Sending APNS notification")
+                self.apns.queue_notification(notification)
+            elif notification.service_type == 'gcm':
+                logger.debug("Sending GCM notification")
+                self.gcm.queue_notification(notification)
             else:
                 logger.error("Unknown push type")
-
-    def push_c2dm(self, notification):
-        logger.debug("Sending C2DM notification")
-        n = C2DMNotification(notification['registration_id'],
-                             notification['payload'])
-        self.c2dm.push(n)
-
-    def push_bbp(self, notification):
-        logger.debug("Sending BBP notification")
-        n = BlackBerryPushNotification(notification['device_pins'],
-                                       notification['message'])
-        self.bbp.push(n)
-
-    def push_apns(self, notification):
-        logger.debug("Sending APNS notification")
-        token = notification['token'].decode('hex')
-        kwargs = dict()
-        for attr in ['alert', 'badge', 'extra', 'sound']:
-            if attr in notification:
-                kwargs[attr] = notification[attr]
-        message = NotificationMessage(token,
-                                      **kwargs)
-        self.apns.send(message)
 
 
 def apns_feedback_handler(apns):
@@ -108,30 +85,18 @@ def read_config(config_dir):
 
 def setup(config):
     # Apple
-    apns_server = NotificationService(
+    apns_server = APNSService(
         sandbox=config.getboolean('apns', 'sandbox'),
         certfile=config.get('apns', 'cert_file_pem'))
     apns_server.start()
 
     gevent.spawn(apns_feedback_handler, apns_server)
 
-    # BlackBerry
-    try:
-        bbp_server = BlackBerryPushService(config.get('bbp', 'app_id'),
-                                           config.get('bbp', 'password'),
-                                           config.get('bbp', 'push_url'))
-        bbp_server.start()
-    except ConfigParser.NoSectionError:
-        bbp_server = None
-
-    # C2DM
-    c2dm_server = C2DMService(config.get('c2dm', 'source'),
-                              config.get('c2dm', 'email'),
-                              config.get('c2dm', 'password'))
-    c2dm_server.start()
+    # GCM
+    gcm_server = GCMService(config.get('gcm', 'api_key'))
+    gcm_server.start()
 
     # API
     api_server = APIServer(apns=apns_server,
-                           bbp=bbp_server,
-                           c2dm=c2dm_server)
+                           gcm=gcm_server)
     return api_server
