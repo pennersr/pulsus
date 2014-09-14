@@ -24,6 +24,7 @@ class APIServer(object):
 
     def __init__(self, *args, **kwargs):
         self.apns = kwargs.pop('apns')
+        self.apns_sandbox = kwargs.pop('apns_sandbox')
         self.gcm = kwargs.pop('gcm')
 
     def wsgi_app(self, environ, start_response):
@@ -45,35 +46,40 @@ class APIServer(object):
         return resp
 
     def handle_feedback(self, request):
+        feedback = self._handle_feedback(self.apns, False)
+        feedback.extend(self._handle_feedback(self.apns_sandobx, True))
+        resp = Response(json.dumps(feedback))
+        return resp
+
+    def _handle_feedback(self, apns, sandbox):
         feedback = []
         try:
             while True:
-                epoch, token = self.apns.get_feedback(block=False)
+                epoch, token = apns.get_feedback(block=False)
                 dt = datetime.utcfromtimestamp(epoch)
                 feedback.append(dict(type='apns',
+                                     sandbox=sandbox,
                                      marked_inactive_on=dt.isoformat(),
                                      token=token.encode('hex')))
         except Empty:
             pass
-        resp = Response(json.dumps(feedback))
-        return resp
+        return feedback
 
     def push_notifications(self, notifications):
         for data in notifications:
             notification = BaseNotification.deserialize(data)
             if notification.service_type == 'apns':
-                logger.debug("Sending APNS notification")
-                self.apns.queue_notification(notification)
+                if notification.sandbox:
+                    logger.debug("Sending APNS notification (to sandbox)")
+                    self.apns_sandbox.queue_notification(notification)
+                else:
+                    logger.debug("Sending APNS notification")
+                    self.apns.queue_notification(notification)
             elif notification.service_type == 'gcm':
                 logger.debug("Sending GCM notification")
                 self.gcm.queue_notification(notification)
             else:
                 logger.error("Unknown push type")
-
-
-def apns_feedback_handler(apns):
-    for fb in apns.get_feedback():
-        print fb
 
 
 def read_config(config_dir):
@@ -83,14 +89,17 @@ def read_config(config_dir):
 
 
 def setup(config):
-    # Apple
-
+    # Apple (Production)
     apns_server = APNSService(
-        sandbox=config.getboolean('apns', 'sandbox'),
+        sandbox=False,
         certfile=config.get('apns', 'cert_file_pem'))
     apns_server.start()
 
-    gevent.spawn(apns_feedback_handler, apns_server)
+    # Apple (Sandbox)
+    apns_sandbox_server = APNSService(
+        sandbox=True,
+        certfile=config.get('apns:sandbox', 'cert_file_pem'))
+    apns_sandbox_server.start()
 
     # GCM
     gcm_server = GCMService(config.get('gcm', 'api_key'))
@@ -98,5 +107,6 @@ def setup(config):
 
     # API
     api_server = APIServer(apns=apns_server,
+                           apns_sandbox=apns_sandbox_server,
                            gcm=gcm_server)
     return api_server

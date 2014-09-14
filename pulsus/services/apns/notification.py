@@ -21,7 +21,7 @@ class APNSNotification(BaseNotification):
     service_type = 'apns'
 
     def __init__(self, token, alert=None, badge=None, sound=None,
-                 identifier=0, expiry=None, extra=None):
+                 identifier=0, expiry=None, extra=None, sandbox=True):
         if len(token) != 64:
             raise ValueError(u"Token must be a 64-char hex string.")
         if (alert is not None) and (not isinstance(alert, (str, unicode))):
@@ -35,13 +35,15 @@ class APNSNotification(BaseNotification):
             expiry = long(time.time() + 365 * 86400)
         self.expiry = expiry
         self.extra = extra
+        self.sandbox = sandbox
 
     @classmethod
     def deserialize_data(cls, data):
         return APNSNotification(**data)
 
     def serialize_data(self):
-        ret = dict(token=self.token)
+        ret = dict(token=self.token,
+                   sandbox=self.sandbox)
         for attr in ['alert', 'badge', 'extra', 'sound',
                      'identifier', 'expiry']:
             val = getattr(self, attr)

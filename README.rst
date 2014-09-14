@@ -14,9 +14,11 @@ Pulsus configuration file over at `/home/example/etc/pulsus/pulsus.conf`::
     address = 127.0.0.1
     port = 8321
 
+    [apns:sandbox]
+    cert_file_pem = /home/example/etc/pulsus/apns-dev.pem
+
     [apns]
     cert_file_pem = /home/example/etc/pulsus/apns.pem
-    sandbox = True
 
     [gcm]
     api_key=AIzaSyATHISISSECRET
@@ -42,6 +44,7 @@ Client::
 
     ios_message = APNSNotification(
         token='676be1c77...',
+        sandbox=True,
         alert='Helo World!')])
 
     client = Client('127.0.0.1', 8321)
