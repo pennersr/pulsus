@@ -41,13 +41,16 @@ class APIServer(object):
             self.push_notifications(notifications)
             resp = Response('')
             resp.status_code = 201
-        elif request.path == '/api/feedback/' and request.method == 'GET':
+        elif request.path == '/api/feedback/' and request.method == 'POST':
             resp = self.handle_feedback(request)
+        else:
+            resp = Response('')
+            resp.status_code = 400
         return resp
 
     def handle_feedback(self, request):
         feedback = self._handle_feedback(self.apns, False)
-        feedback.extend(self._handle_feedback(self.apns_sandobx, True))
+        feedback.extend(self._handle_feedback(self.apns_sandbox, True))
         resp = Response(json.dumps(feedback))
         return resp
 
@@ -59,7 +62,7 @@ class APIServer(object):
                 dt = datetime.utcfromtimestamp(epoch)
                 feedback.append(dict(type='apns',
                                      sandbox=sandbox,
-                                     marked_inactive_on=dt.isoformat(),
+                                     marked_inactive_at=dt.isoformat(),
                                      token=token.encode('hex')))
         except Empty:
             pass
