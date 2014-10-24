@@ -42,7 +42,7 @@ class APNSService(BaseService):
         if self._push_connection is None:
             tcp_socket = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM, 0)
-            s = ssl.wrap_socket(tcp_socket, ssl_version=ssl.PROTOCOL_SSLv3,
+            s = ssl.wrap_socket(tcp_socket, ssl_version=ssl.PROTOCOL_TLSv1,
                                 **self._sslargs)
             addr = ["gateway.push.apple.com", 2195]
             if self._sandbox:
@@ -57,7 +57,7 @@ class APNSService(BaseService):
         if self._feedback_connection is None:
             tcp_socket = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM, 0)
-            s = ssl.wrap_socket(tcp_socket, ssl_version=ssl.PROTOCOL_SSLv3,
+            s = ssl.wrap_socket(tcp_socket, ssl_version=ssl.PROTOCOL_TLSv1,
                                 **self._sslargs)
             addr = ["feedback.push.apple.com", 2196]
             if self._sandbox:
