@@ -11,7 +11,7 @@ long_description = io.open('README.rst', encoding='utf-8').read()
 
 setup(
     name='pulsus',
-    version='0.1.0',
+    version='1.0.0',
     author="Raymond Penners",
     author_email="raymond.penners@intenct.nl",
     description='Push Notification Service handling Apple Push'
@@ -23,7 +23,7 @@ setup(
     install_requires=requires,
     zip_safe=False,
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Environment :: Web Environment',

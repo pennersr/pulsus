@@ -5,6 +5,7 @@ Welcome to pulsus!
 A Push Notification Service, written in Python, handling Apple APNS,
 and Google GCM.
 
+
 Installation
 ============
 
@@ -29,6 +30,14 @@ Then, start as follows::
     /home/example/virtualenv/bin/python -m pulsus.server.serve /home/example/etc/pulsus/
 
 
+Certificates
+============
+
+Export your certificate from Keychain in .p12 format. Then::
+
+    openssl pkcs12 -in certificate.p12 -out apns.pem -nodes
+
+
 Usage
 =====
 
@@ -49,3 +58,14 @@ Client::
 
     client = Client('127.0.0.1', 8321)
     client.push([android_message, ios_message])
+
+
+Frequently Asked Questions
+==========================
+
+What is the status of this project?
+-----------------------------------
+
+Even while this project may seem a bit inactive when looking at public
+repository, do note that this project has been (and still is) running rock solid
+in production for several years now.
