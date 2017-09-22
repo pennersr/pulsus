@@ -49,21 +49,24 @@ class APIServer(object):
         return resp
 
     def handle_feedback(self, request):
-        feedback = self._handle_feedback(self.apns, False)
-        feedback.extend(self._handle_feedback(self.apns_sandbox, True))
+        feedback = self._handle_feedback('apns', self.apns, False)
+        feedback.extend(self._handle_feedback('apns', self.apns_sandbox, True))
+        feedback.extend(self._handle_feedback('gcm', self.gcm, False))
         resp = Response(json.dumps(feedback))
         return resp
 
-    def _handle_feedback(self, apns, sandbox):
+    def _handle_feedback(self, type, service, sandbox):
         feedback = []
         try:
             while True:
-                epoch, token = apns.get_feedback(block=False)
+                epoch, token = service.get_feedback(block=False)
+                if type == 'apns':
+                    token = token.encode('hex')
                 dt = datetime.utcfromtimestamp(epoch)
-                feedback.append(dict(type='apns',
+                feedback.append(dict(type=type,
                                      sandbox=sandbox,
                                      marked_inactive_at=dt.isoformat(),
-                                     token=token.encode('hex')))
+                                     token=token))
         except Empty:
             pass
         return feedback

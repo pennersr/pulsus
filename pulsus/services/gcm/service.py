@@ -1,5 +1,7 @@
 import logging
 import grequests
+from datetime import datetime
+import time
 
 from ..base.service import BaseService
 
@@ -34,9 +36,17 @@ class GCMService(BaseService):
         # necessary to parse the remainder of the response.
         if not data['failure'] and not data['canonical_ids']:
             return
-        for result in data['results']:
+        registration_ids = message.registration_ids
+        for result_i, result in enumerate(data['results']):
             logger.info('Result: %r' % result)
             # message_id = result['message_id']
+
+            sent_registration_id = None
+            if result_i < len(registration_ids):
+                sent_registration_id = registration_ids[result_i]
+            else:
+                logger.error('Unable to lookup sent registration_id')
+
             registration_id = result.get('registration_id')
             error = result.get('error')
             if registration_id:
@@ -65,8 +75,15 @@ class GCMService(BaseService):
                     # broadcast receiver configured to receive
                     # com.google.android.c2dm.intent.RECEIVE intents.
 
-                    # FIXME
-                    pass
+                    if sent_registration_id:
+                        epoch = time.mktime(datetime.now().utctimetuple())
+                        logger.info(
+                            'Marking registration ID as to be'
+                            ' removed: {}'.format(
+                                sent_registration_id))
+                        self._feedback_queue.put((
+                            epoch,
+                            sent_registration_id))
                 else:
                     # Otherwise, there is something wrong in the
                     # registration ID passed in the request; it is

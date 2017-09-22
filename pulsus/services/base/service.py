@@ -90,3 +90,13 @@ class BaseService(object):
         if self.timeout == INITIAL_TIMEOUT:
             return False
         return True
+
+    def get_feedback(self, block=True, timeout=None):
+        """
+        Get the next feedback message.
+
+        Each feedback message is a 2-tuple of (timestamp, device_token).
+        """
+        return self._feedback_queue.get(
+            block=block,
+            timeout=timeout)

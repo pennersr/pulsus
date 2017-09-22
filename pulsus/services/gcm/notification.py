@@ -26,6 +26,10 @@ class GCMJSONMessage(GCMMessage):
             self.data[k] = v
         self.data['registration_ids'] = registration_ids
 
+    @property
+    def registration_ids(self):
+        return self.data['registration_ids']
+
     def serialize_data(self):
         return self.data
 
