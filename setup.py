@@ -4,7 +4,8 @@ from setuptools import setup, find_packages
 requires = [
     'werkzeug>=0.9.4',
     'gevent>=1.0',
-    'grequests'
+    'grequests',
+    'six>=1.11.0'
 ]
 
 long_description = io.open('README.rst', encoding='utf-8').read()

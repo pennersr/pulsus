@@ -21,7 +21,7 @@ class GCMJSONMessage(GCMMessage):
             'data',
             'dry_run']
         self.data = {}
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             assert k in optional
             self.data[k] = v
         self.data['registration_ids'] = registration_ids

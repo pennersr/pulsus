@@ -2,6 +2,8 @@ import struct
 import json
 import time
 
+import six
+
 from ..base.notification import BaseNotification
 
 
@@ -24,7 +26,8 @@ class APNSNotification(BaseNotification):
                  identifier=0, expiry=None, extra=None, sandbox=True):
         if len(token) != 64:
             raise ValueError(u"Token must be a 64-char hex string.")
-        if (alert is not None) and (not isinstance(alert, (str, unicode))):
+        if ((alert is not None) and
+                (not isinstance(alert, six.string_types))):
             raise ValueError
         self.token = token
         self.alert = alert
@@ -32,7 +35,7 @@ class APNSNotification(BaseNotification):
         self.sound = sound
         self.identifier = identifier
         if expiry is None:
-            expiry = long(time.time() + 365 * 86400)
+            expiry = int(time.time() + 365 * 86400)
         self.expiry = expiry
         self.extra = extra
         self.sandbox = sandbox
