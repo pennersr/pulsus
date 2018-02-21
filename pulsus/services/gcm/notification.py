@@ -19,7 +19,8 @@ class GCMJSONMessage(GCMMessage):
             'delay_while_idle',
             'restricted_package_name',
             'data',
-            'dry_run']
+            'dry_run',
+            'priority']
         self.data = {}
         for k, v in kwargs.items():
             assert k in optional
