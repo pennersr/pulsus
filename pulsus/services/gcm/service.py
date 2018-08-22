@@ -18,7 +18,7 @@ class GCMService(BaseService):
 
     def send_notification(self, message):
         logger.info(u'GCM push: %r' % message)
-        url = "https://android.googleapis.com/gcm/send"
+        url = "https://fcm.googleapis.com/fcm/send"
         headers = {'Authorization': 'key=' + self.api_key,
                    'Content-Type': 'application/json'}
         req = grequests.post(url,
