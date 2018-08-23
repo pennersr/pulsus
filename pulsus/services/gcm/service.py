@@ -1,24 +1,79 @@
 import logging
-import grequests
-from datetime import datetime
 import time
+from datetime import datetime
+
+import gevent
+import grequests
+from gevent.event import Event
+from gevent.queue import Queue
 
 from ..base.service import BaseService
+
+
+INITIAL_TIMEOUT = 5
+MAX_TIMEOUT = 600
+WORKER_COUNT = 20
 
 logger = logging.getLogger(__name__)
 
 
-class GCMService(BaseService):
+class GCMServiceWorker:
 
-    service_type = 'gcm'
-
-    def __init__(self, api_key):
-        super(GCMService, self).__init__()
+    def __init__(self, worker_id, api_key, feedback_queue):
+        self._send_queue = Queue()
+        self._send_queue_cleared = Event()
+        self._send_greenlet = None
+        self.timeout = INITIAL_TIMEOUT
+        self._feedback_queue = feedback_queue
+        self.worker_id = worker_id
         self.api_key = api_key
+
+    def start(self):
+        """Start the message sending loop."""
+        self._send_greenlet = gevent.spawn(self.save_err, self._send_loop)
+
+    def stop(self, timeout=10.0):
+        if (self._send_greenlet is not None) and \
+                (self._send_queue.qsize() > 0):
+            self.wait_send(timeout=timeout)
+
+        if self._send_greenlet is not None:
+            gevent.kill(self._send_greenlet)
+            self._send_greenlet = None
+        return self._send_queue.qsize() < 1
+
+    def wait_send(self, timeout=None):
+        self._send_queue_cleared.clear()
+        return self._send_queue_cleared.wait(timeout=timeout)
+
+    def queue_notification(self, notification):
+        self._send_queue.put(notification)
+
+    def _send_loop(self):
+        try:
+            logger.info("GCM service started: worker %d" % (
+                self.worker_id))
+            while True:
+                message = self._send_queue.get()
+                try:
+                    self.send_notification(message)
+                except Exception:
+                    self.error_sending_notification(message)
+                else:
+                    self.timeout = INITIAL_TIMEOUT
+                finally:
+                    if self._send_queue.qsize() < 1 and \
+                            not self._send_queue_cleared.is_set():
+                        self._send_queue_cleared.set()
+        except gevent.GreenletExit:
+            pass
+        logger.info("GCM service stopped: worker %d" % (
+            self.worker_id))
 
     def send_notification(self, message):
         logger.info(u'GCM push: %r' % message)
         url = "https://fcm.googleapis.com/fcm/send"
+        logger.info(url)
         headers = {'Authorization': 'key=' + self.api_key,
                    'Content-Type': 'application/json'}
         req = grequests.post(url,
@@ -27,6 +82,7 @@ class GCMService(BaseService):
         resp = grequests.map([req])[0]
         resp.raise_for_status()
         data = resp.json()
+        logger.info(repr(data))
         # Example:
         # {"multicast_id":592394215791271011422,
         #  "success":1,"failure":0,"canonical_ids":0,
@@ -94,3 +150,48 @@ class GCMService(BaseService):
 
                     # FIXME
                     pass
+
+    def save_err(self, func, *args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            self.last_err = e
+            raise
+
+    def get_last_error(self):
+        return self.last_err
+
+    def error_sending_notification(self, notification):
+        logger.exception("Error while pushing")
+        self._send_queue.put(notification)
+        gevent.sleep(self.timeout)
+        # approaching Fibonacci series
+        timeout = int(round(float(self.timeout) * 1.6))
+        self.timeout = min(timeout, MAX_TIMEOUT)
+
+
+class GCMService(BaseService):
+
+    def __init__(self, api_key):
+        self.feedback_queue = Queue()
+        self.workers = [
+            GCMServiceWorker(i, api_key, self.feedback_queue)
+            for i in range(WORKER_COUNT)]
+        self.next_worker = 0
+
+    def get_feedback(self, block=True, timeout=None):
+        return self.feedback_queue.get(
+            block=block,
+            timeout=timeout)
+
+    def queue_notification(self, notification):
+        self.workers[self.next_worker].queue_notification(notification)
+        self.next_worker = (self.next_worker + 1) % WORKER_COUNT
+
+    def start(self):
+        for w in self.workers:
+            w.start()
+
+    def stop(self, timeout=10.0):
+        for w in self.workers:
+            w.stop()

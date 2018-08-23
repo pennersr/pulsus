@@ -1,15 +1,15 @@
-import os
 import logging
+import os
 import struct
 
 import gevent
+from gevent import socket, ssl
+from gevent.event import Event
 from gevent.queue import Queue
-from gevent import socket
-from gevent import ssl
 
 from ..base.service import BaseService
-
 from .notification import APNSNotification
+
 
 INITIAL_TIMEOUT = 5
 MAX_TIMEOUT = 600
@@ -23,7 +23,11 @@ class APNSService(BaseService):
     service_type = 'apns'
 
     def __init__(self, sandbox=True, **kwargs):
-        super(APNSService, self).__init__()
+        self._send_queue = Queue()
+        self._send_queue_cleared = Event()
+        self._send_greenlet = None
+        self.timeout = INITIAL_TIMEOUT
+        self._feedback_queue = Queue()
         if "certfile" not in kwargs:
             raise ValueError(u"Must specify a PEM bundle.")
         if not os.path.exists(kwargs['certfile']):
@@ -37,6 +41,33 @@ class APNSService(BaseService):
         self._feedback_connection = None
         self._feedback_greenlet = None
         self.last_err = None
+
+    def start(self):
+        """Start the message sending loop."""
+        if self._send_greenlet is None:
+            self._send_greenlet = gevent.spawn(self.save_err, self._send_loop)
+
+    def _send_loop(self):
+        self._send_greenlet = gevent.getcurrent()
+        try:
+            logger.info("%s service started" % self.service_type)
+            while True:
+                message = self._send_queue.get()
+                try:
+                    self.send_notification(message)
+                except Exception:
+                    self.error_sending_notification(message)
+                else:
+                    self.timeout = INITIAL_TIMEOUT
+                finally:
+                    if self._send_queue.qsize() < 1 and \
+                            not self._send_queue_cleared.is_set():
+                        self._send_queue_cleared.set()
+        except gevent.GreenletExit:
+            pass
+        finally:
+            self._send_greenlet = None
+        logger.info("%s service stopped" % self.service_type)
 
     def _check_send_connection(self):
         if self._push_connection is None:
@@ -108,7 +139,7 @@ class APNSService(BaseService):
         """Send a push notification"""
         if not isinstance(obj, APNSNotification):
             raise ValueError(u"You can only send APNSNotification objects.")
-        return super(APNSService, self).queue_notification(obj)
+        self._send_queue.put(obj)
 
     def get_error(self, block=True, timeout=None):
         """
@@ -125,7 +156,7 @@ class APNSService(BaseService):
         if self._feedback_greenlet is None:
             self._feedback_greenlet = gevent.spawn(self.save_err,
                                                    self._feedback_loop)
-        return super(APNSService, self).get_feedback(
+        return self._feedback_queue.get(
             block=block,
             timeout=timeout)
 
@@ -137,7 +168,13 @@ class APNSService(BaseService):
         - timeout: seconds to wait for sending remaining messages. disconnect
           immediately if None.
         """
-        super(APNSService, self).stop(timeout=timeout)
+        if (self._send_greenlet is not None) and \
+                (self._send_queue.qsize() > 0):
+            self.wait_send(timeout=timeout)
+
+        if self._send_greenlet is not None:
+            gevent.kill(self._send_greenlet)
+            self._send_greenlet = None
 
         if self._error_greenlet is not None:
             gevent.kill(self._error_greenlet)
@@ -148,14 +185,32 @@ class APNSService(BaseService):
 
         return self._send_queue.qsize() < 1
 
+    def wait_send(self, timeout=None):
+        self._send_queue_cleared.clear()
+        return self._send_queue_cleared.wait(timeout=timeout)
+
     def error_sending_notification(self, notification):
         if self._push_connection is not None:
             self._push_connection.close()
             self._push_connection = None
-        return super(APNSService, self).error_sending_notification(
-            notification)
+        logger.exception("Error while pushing")
+        self._send_queue.put(notification)
+        gevent.sleep(self.timeout)
+        # approaching Fibonacci series
+        timeout = int(round(float(self.timeout) * 1.6))
+        self.timeout = min(timeout, MAX_TIMEOUT)
 
     def send_notification(self, notification):
         self._check_send_connection()
         logger.debug('Sending APNS notification')
         self._push_connection.send(notification.pack())
+
+    def save_err(self, func, *args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            self.last_err = e
+            raise
+
+    def get_last_error(self):
+        return self.last_err
