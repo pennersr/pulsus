@@ -1,10 +1,12 @@
 import io
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
+
 
 requires = [
-    'werkzeug>=0.9.4',
-    'gevent>=1.0',
-    'grequests',
+    'werkzeug>=0.14.1',
+    'gevent>=1.3.6',
+    'requests>=2.19.1',
     'six>=1.11.0'
 ]
 
@@ -12,7 +14,7 @@ long_description = io.open('README.rst', encoding='utf-8').read()
 
 setup(
     name='pulsus',
-    version='1.0.0',
+    version='1.1.0',
     author="Raymond Penners",
     author_email="raymond.penners@intenct.nl",
     description='Push Notification Service handling Apple Push'

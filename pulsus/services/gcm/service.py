@@ -1,9 +1,9 @@
 import logging
+import requests
 import time
 from datetime import datetime
 
 import gevent
-import grequests
 from gevent.event import Event
 from gevent.queue import Queue
 
@@ -27,6 +27,7 @@ class GCMServiceWorker:
         self._feedback_queue = feedback_queue
         self.worker_id = worker_id
         self.api_key = api_key
+        self.session = requests.Session()
 
     def start(self):
         """Start the message sending loop."""
@@ -71,18 +72,18 @@ class GCMServiceWorker:
             self.worker_id))
 
     def send_notification(self, message):
-        logger.info(u'GCM push: %r' % message)
+        t = time.time()
+        logger.info('Pushing GCM message...')
         url = "https://fcm.googleapis.com/fcm/send"
-        logger.info(url)
         headers = {'Authorization': 'key=' + self.api_key,
                    'Content-Type': 'application/json'}
-        req = grequests.post(url,
-                             data=message.pack(),
-                             headers=headers)
-        resp = grequests.map([req])[0]
+        resp = self.session.post(
+            url,
+            data=message.pack(),
+            headers=headers)
+        logger.info('...pushed GCM message, took %fs' % (time.time() - t))
         resp.raise_for_status()
         data = resp.json()
-        logger.info(repr(data))
         # Example:
         # {"multicast_id":592394215791271011422,
         #  "success":1,"failure":0,"canonical_ids":0,
