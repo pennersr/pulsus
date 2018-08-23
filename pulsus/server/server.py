@@ -1,21 +1,19 @@
-from gevent import monkey
-monkey.patch_all()
-
-from datetime import datetime
-from gevent.queue import Empty
-
-import os
+import configparser
 import json
-import gevent
 import logging
-import ConfigParser
+import os
+from datetime import datetime
 
+from gevent import monkey
+from gevent.queue import Empty
 from werkzeug.wrappers import Request, Response
 
 from ..services.apns import APNSService
-from ..services.gcm import GCMService
 from ..services.base import BaseNotification
+from ..services.gcm import GCMService
 
+
+monkey.patch_all()
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +87,7 @@ class APIServer(object):
 
 
 def read_config(config_dir):
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
     config.read([os.path.join(config_dir, 'pulsus.conf')])
     return config
 

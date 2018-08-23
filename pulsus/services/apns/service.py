@@ -126,7 +126,7 @@ class APNSService(BaseService):
                 if len(msg) < 38:
                     return
                 data = struct.unpack("!IH32s", msg)
-                self._feedback_queue.put((data[0], data[2]))
+                self._feedback_queue.put((data[0], data[2].decode('utf8')))
         except gevent.GreenletExit:
             logger.exception('Error')
         finally:

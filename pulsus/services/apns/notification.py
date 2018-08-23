@@ -1,5 +1,5 @@
-import struct
 import json
+import struct
 import time
 
 import six
@@ -56,7 +56,7 @@ class APNSNotification(BaseNotification):
 
     def pack(self):
         aps = {}
-        token = self.token.decode('hex')
+        token = bytes.fromhex(self.token)
         if self.alert is not None:
             aps["alert"] = self.alert
         if self.badge is not None:
@@ -75,4 +75,4 @@ class APNSNotification(BaseNotification):
         return struct.pack(
             "!bIIH32sH%(length)ds" % {"length": length},
             1, self.identifier, self.expiry,
-            32, token, length, encoded)
+            32, token, length, encoded.encode('utf8'))
