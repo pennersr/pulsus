@@ -1,6 +1,7 @@
 import logging
 import os
 import struct
+import binascii
 
 import gevent
 from gevent import socket, ssl
@@ -126,7 +127,8 @@ class APNSService(BaseService):
                 if len(msg) < 38:
                     return
                 data = struct.unpack("!IH32s", msg)
-                self._feedback_queue.put((data[0], data[2].decode('utf8')))
+                token = binascii.b2a_hex(data[2]).decode('ascii')
+                self._feedback_queue.put((data[0], token))
         except gevent.GreenletExit:
             logger.exception('Error')
         finally:

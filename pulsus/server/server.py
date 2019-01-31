@@ -58,8 +58,6 @@ class APIServer(object):
         try:
             while True:
                 epoch, token = service.get_feedback(block=False)
-                if type == 'apns':
-                    token = token.encode('hex')
                 dt = datetime.utcfromtimestamp(epoch)
                 feedback.append(dict(type=type,
                                      sandbox=sandbox,
