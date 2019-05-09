@@ -69,3 +69,5 @@ What is the status of this project?
 Even while this project may seem a bit inactive when looking at public
 repository, do note that this project has been (and still is) running rock solid
 in production for several years now.
+
+**2019-05-09 update:** After reaching almost 100M push notifications this project has finally been retired. It was due for an upgrade as it was still using the legacy binary APNS protocol. However, as over time the technology stack changed to Golang, it has been completely rewritten see: `Shove <https://gitlab.com/pennersr/shove>`_
